@@ -13,7 +13,7 @@ from usage_reader import UsageError, find_codex
 
 APP_NAME = "codex-usage-indicator"
 MARKER = ".codex-usage-managed.json"
-FILES = ("indicator.py", "usage_reader.py", "ui_model.py", "install.py", "uninstall.py",
+FILES = ("indicator.py", "usage_reader.py", "ui_model.py", "reset_state.py", "install.py", "uninstall.py",
          "README.md", "icons/codex-usage-symbolic.svg")
 DESKTOP_MARKER = "X-Codex-Usage-Managed=true"
 
@@ -78,7 +78,7 @@ def install(home, autostart_enabled=True):
             staging = output.with_name(output.name + ".new")
             shutil.copy2(source / name, staging)
             staging.replace(output)
-    (target / MARKER).write_text(json.dumps({"app": APP_NAME, "version": "0.1.0", "files": FILES}) + "\n")
+    (target / MARKER).write_text(json.dumps({"app": APP_NAME, "version": "0.2.0", "files": FILES}) + "\n")
     command = " ".join(desktop_quote(part) for part in
                        ("/usr/bin/python3", target / "indicator.py", "--codex", codex))
     entry = f"""[Desktop Entry]

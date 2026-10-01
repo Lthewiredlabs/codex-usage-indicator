@@ -2,17 +2,31 @@
 
 A small app that shows your remaining Codex allowance in the GNOME top bar, alongside system resource indicators.
 
-**Panel example:** `Codex 80% · 40%` (illustrative values)
+**Panel example:** `Codex 80% · 40% · ↻2` (illustrative values)
 
-The first number is the five-hour allowance remaining; the second is the weekly allowance remaining. The menu labels the actual window lengths reported by your account and shows reset times in your local timezone. Any additional usage buckets appear in the menu.
+The first number is the five-hour allowance remaining; the second is the weekly allowance remaining. `↻2` means two usage resets are available. The menu labels the actual window lengths reported by your account and shows reset times in your local timezone. Any additional usage buckets appear in the menu.
 
 - Refreshes every minute, with **Refresh now** in the menu.
 - Starts when you sign in. Search for **Codex Usage** in the application launcher to reopen it after quitting.
 - Uses your existing local Codex sign-in. No API key needs to be copied into this app.
-- Only reads usage. It does not start AI conversations, run model requests, buy credits, or use reset credits.
+- Normal refreshes only read account information. They do not start AI conversations, run model requests, or buy credits.
+- **Reset usage…** checks availability and asks for confirmation before using one existing reset. Cancel is the default.
 - A `~` means the numbers are from the last successful check. A `—` means unavailable. A passed reset time is never treated as proof that the allowance is full again.
+- `↻0` means no resets are available; `↻?` means the count is unknown; `↻~2` means two were available at the last successful check. The reset button is disabled while data is stale, unavailable, or another operation is in progress.
 
-The app keeps its last successful reading in memory and does not store account details or credentials. Codex itself handles its usual authentication and network connection. It works while the Codex desktop window is closed, provided the installed Codex executable and sign-in remain available.
+The app keeps usage readings in memory and never stores credentials. If you confirm a reset, it saves a small private record containing a request UUID, a hash of the signed-in email, and the selected reset credit ID when available. This lets an interrupted reset be retried without spending another credit. Codex itself handles authentication and network access. The indicator works while the Codex desktop window is closed, provided the installed Codex executable and sign-in remain available.
+
+## Use a reset
+
+1. Open the indicator menu and check **Available resets**.
+2. Select **Reset usage…**. The app checks your account again.
+3. Choose **Use 1 reset** to confirm, or **Cancel** to keep it.
+
+The server decides which usage limits are eligible for the reset. The app reads the updated usage after the request; it never assumes the percentages returned to 100%.
+
+If the connection drops before a result is confirmed, use **Retry previous reset…**. The saved request is reused, even after restarting the app. A reset that already succeeded will not spend a second credit. Normal refreshes never retry a reset automatically. The same sign-in is required for retrying; the available account interface identifies sign-ins by email and does not distinguish workspaces sharing an email.
+
+Pending reset state lives at `~/.local/state/codex-usage-indicator/reset-attempt.json` (or beneath an absolute `XDG_STATE_HOME`). The file is private to your user. Corrupt or unreadable pending state disables resets instead of generating a new request. Do not delete a pending record to work around an uncertain result; retry the saved request first.
 
 ## Install and launch
 
@@ -56,7 +70,7 @@ Choose **Quit Codex Usage** in the panel menu to stop it for this session. To re
 /usr/bin/python3 ~/.local/share/codex-usage-indicator/uninstall.py
 ```
 
-Removal backs up the managed application files first, preserves unrelated files, and leaves Codex and its sign-in untouched. Python bytecode caches may remain in the old application folder.
+Removal backs up the managed application files first, preserves unrelated files, and leaves Codex and its sign-in untouched. Python bytecode caches may remain in the old application folder. Pending reset state is preserved so reinstalling cannot accidentally repeat an unresolved reset with a new request.
 
 ## Verification
 
@@ -67,10 +81,12 @@ python3 -m unittest discover -s tests -v
 /usr/bin/python3 usage_reader.py
 ```
 
-The 15 tests cover remaining-percentage calculation, unknown and stale values, passed reset times, multiple buckets, protocol initialization, read-only request selection, timeout cleanup, and sanitized errors. Separate manual validation on GNOME 46 on September 10, 2026 confirmed the exported indicator label, menu, single-instance behavior, and automatic refresh.
+Tests cover remaining percentages, unknown and stale counts, reset confirmation and cancellation, durable retry keys, account changes, reset outcomes, timeout cleanup, and sanitized errors. Reset requests use simulated Codex backends; testing does not spend real credits. UI callback tests require the system GTK/AppIndicator dependencies and are skipped when unavailable. Separate manual validation on GNOME 46 on September 10, 2026 confirmed the original indicator label, menu, single-instance behavior, and automatic refresh.
 
 ## How it reads usage
 
-The reader briefly starts the installed `codex app-server` over local standard input/output, initializes the protocol, and requests `account/rateLimits/read`. It prefers `rateLimitsByLimitId`, falling back to `rateLimits`. The displayed allowance is `100 - usedPercent`, limited to 0–100. This is the shared Codex account allowance, not the context window of an individual conversation.
+The reader briefly starts the installed `codex app-server` over local standard input/output, initializes the protocol, and requests `account/rateLimits/read` and `account/read`. It prefers `rateLimitsByLimitId`, falling back to `rateLimits`. The displayed allowance is `100 - usedPercent`, limited to 0–100. This is the shared Codex account allowance, not the context window of an individual conversation.
+
+The reset count comes from `rateLimitResetCredits.availableCount`, which is authoritative even if detailed credit rows are unavailable or incomplete. A confirmed reset calls `account/rateLimitResetCredit/consume` with the saved idempotency key. When credit details are available, the app selects an available credit with the earliest known expiry. Server outcomes distinguish a newly applied reset, an already-applied attempt, no available credit, and nothing eligible to reset.
 
 The protocol is documented in [OpenAI's Codex App Server documentation](https://learn.chatgpt.com/docs/app-server). The GNOME panel integration uses [Ayatana AppIndicator](https://github.com/AyatanaIndicators/libayatana-appindicator). Future Codex protocol changes may require an update to the reader.

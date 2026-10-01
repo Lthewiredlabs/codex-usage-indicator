@@ -10,6 +10,36 @@ def numeric(value):
     return not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(value)
 
 
+def reset_count(snapshot):
+    credits = snapshot.get("resetCredits") if isinstance(snapshot, dict) else None
+    value = credits.get("availableCount") if isinstance(credits, dict) else None
+    return value if type(value) is int and value >= 0 else None
+
+
+def usage_is_stale(snapshot, now, error=None):
+    fetched = snapshot.get("fetchedAt") if isinstance(snapshot, dict) else None
+    return bool(error) or not numeric(fetched) or now - fetched > STALE_AFTER_SECONDS
+
+
+def can_reset(snapshot, now, error=None, pending=None):
+    if usage_is_stale(snapshot, now, error) or not snapshot.get("accountScope"):
+        return False
+    if pending:
+        return snapshot["accountScope"] == pending.get("accountScope")
+    count = reset_count(snapshot)
+    return count is not None and count > 0
+
+
+def available_credit_id(snapshot, now):
+    credits = (snapshot.get("resetCredits") or {}).get("credits") or []
+    available = [credit for credit in credits if isinstance(credit, dict)
+                 and isinstance(credit.get("id"), str) and credit["id"]
+                 and credit.get("status") == "available"
+                 and (not numeric(credit.get("expiresAt")) or credit["expiresAt"] > now)]
+    available.sort(key=lambda credit: credit.get("expiresAt") if numeric(credit.get("expiresAt")) else float("inf"))
+    return available[0]["id"] if available else None
+
+
 def remaining(window, now):
     if not isinstance(window, dict) or not numeric(window.get("usedPercent")):
         return None
@@ -67,7 +97,7 @@ def build_view(snapshot, now, error=None, refreshing=False):
     buckets = [bucket for bucket in buckets if isinstance(bucket, dict)]
     selected = next((b for b in buckets if b.get("id") == "codex"), buckets[0] if buckets else None)
     fetched = snapshot.get("fetchedAt") if isinstance(snapshot, dict) else None
-    stale = bool(error) or not numeric(fetched) or now - fetched > STALE_AFTER_SECONDS
+    stale = usage_is_stale(snapshot, now, error)
     if selected is None:
         label = "Codex …" if refreshing else "Codex —"
     else:
@@ -77,6 +107,10 @@ def build_view(snapshot, now, error=None, refreshing=False):
         # Keep the named quota visible if an account only has a non-Codex bucket.
         name = "Codex" if selected.get("id") == "codex" else str(selected.get("name") or selected.get("id"))
         label = f"{name} {prefix}{primary} · {secondary}"
+
+    count = reset_count(snapshot)
+    count_text = "?" if count is None else str(count)
+    label += f" · ↻{'~' if stale and count is not None else ''}{count_text}"
 
     rows = [("Codex usage · remaining", True)]
     if selected:
@@ -93,6 +127,14 @@ def build_view(snapshot, now, error=None, refreshing=False):
             value = percent(remaining(window, now))
             rows.append((f"{name}: {value} remaining" if value != "—" else f"{name}: unavailable", False))
             rows.append((reset_text(window, now), False))
+    rows.append(("Usage resets", True))
+    if count is None:
+        rows.append(("Available resets: unknown", False))
+    else:
+        rows.append((f"{'Last known available' if stale else 'Available'} resets: {count}", False))
+    rows.append(("↻ in the panel is your available reset count", False))
+    if count and not snapshot.get("accountScope"):
+        rows.append(("Reset disabled: Codex sign-in could not be verified", False))
     if error:
         rows.append((error, False))
     elif not buckets:
