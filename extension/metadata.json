@@ -1,0 +1,8 @@
+{
+  "uuid": "codex-quick-chat@lthewiredlabs",
+  "name": "Codex Quick Chat",
+  "description": "A small Codex conversation with Bit inside the clock's notification panel, using your existing Codex sign-in.",
+  "shell-version": ["50"],
+  "session-modes": ["user"],
+  "version": 1
+}

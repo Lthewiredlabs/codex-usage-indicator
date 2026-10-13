@@ -1,0 +1,93 @@
+/* Scoped to our actors. Native Shell classes supply theme-aware surfaces,
+ * buttons, entry colors, and focus outlines in dark, light and high contrast. */
+.codex-quick-chat-column {
+  spacing: 6px;
+}
+
+.codex-quick-chat-card {
+  width: 26em;
+  margin: 0 10px 4px 0;
+  padding: 14px;
+  border-radius: 18px;
+  spacing: 10px;
+}
+
+.codex-quick-chat-card:rtl {
+  margin: 0 0 4px 10px;
+}
+
+.codex-quick-chat-header {
+  spacing: 10px;
+}
+
+.codex-quick-chat-mascot {
+  icon-size: 36px;
+  -st-icon-style: symbolic;
+}
+
+.codex-quick-chat-heading {
+  spacing: 2px;
+}
+
+.codex-quick-chat-title {
+  font-weight: bold;
+}
+
+.codex-quick-chat-status,
+.codex-quick-chat-caption {
+  font-size: 0.85em;
+}
+
+.codex-quick-chat-preview {
+  max-height: 11em;
+}
+
+.codex-quick-chat-messages {
+  spacing: 10px;
+  padding-right: 10px;
+}
+
+.codex-quick-chat-message {
+  spacing: 3px;
+}
+
+.codex-quick-chat-role {
+  font-size: 0.8em;
+  font-weight: bold;
+}
+
+.codex-quick-chat-body {
+  font-size: 0.95em;
+}
+
+.codex-quick-chat-entry {
+  min-width: 0;
+  padding: 9px 11px;
+}
+
+.codex-quick-chat-actions {
+  spacing: 6px;
+}
+
+.codex-quick-chat-button {
+  padding: 6px 10px;
+  min-height: 20px;
+  font-size: 0.9em;
+}
+
+.codex-quick-chat-refresh {
+  padding: 5px;
+}
+
+.codex-quick-chat-refresh StIcon {
+  icon-size: 16px;
+}
+
+.codex-quick-chat-footer {
+  spacing: 6px;
+}
+
+.codex-quick-chat-error {
+  font-size: 0.9em;
+  font-weight: bold;
+}
